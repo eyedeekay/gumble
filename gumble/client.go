@@ -82,6 +82,56 @@ func Dial(addr string, config *Config) (*Client, error) {
 	return DialWithDialer(new(net.Dialer), addr, config, nil)
 }
 
+func ClientWithConn(dialer net.Conn, addr string, config *Config, tlsConfig *tls.Config) (*Client, error) {
+	//start := time.Now()
+
+	conn := tls.Client(dialer, tlsConfig)
+
+	client := &Client{
+		Conn:     NewConn(conn),
+		Config:   config,
+		Users:    make(Users),
+		Channels: make(Channels),
+
+		permissions: make(map[uint32]*Permission),
+
+		state: uint32(StateConnected),
+
+		connect: make(chan *RejectError),
+		end:     make(chan struct{}),
+	}
+
+	go client.readRoutine()
+
+	// Initial packets
+	versionPacket := MumbleProto.Version{
+		Version:   proto.Uint32(ClientVersion),
+		Release:   proto.String("gumble"),
+		Os:        proto.String(runtime.GOOS),
+		OsVersion: proto.String(runtime.GOARCH),
+	}
+	authenticationPacket := MumbleProto.Authenticate{
+		Username: &client.Config.Username,
+		Password: &client.Config.Password,
+		Opus:     proto.Bool(getAudioCodec(audioCodecIDOpus) != nil),
+		Tokens:   client.Config.Tokens,
+	}
+	client.Conn.WriteProto(&versionPacket)
+	client.Conn.WriteProto(&authenticationPacket)
+
+	go client.pingRoutine()
+
+	select {
+	case err := <-client.connect:
+		if err != nil {
+			client.Conn.Close()
+			return nil, err
+		}
+
+		return client, nil
+	}
+}
+
 // DialWithDialer connects to the Mumble server at the given address.
 //
 // The function returns after the connection has been established, the initial

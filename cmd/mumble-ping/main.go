@@ -20,6 +20,7 @@ func main() {
 	interval := flag.Duration("interval", time.Second*1, "ping packet retransmission interval")
 	timeout := flag.Duration("timeout", time.Second*5, "ping timeout until failure")
 	jsonOutput := flag.Bool("json", false, "output success response as JSON")
+	i2pPing := flag.Bool("i2p", false, "use I2P to ping the server")
 	flag.Parse()
 	if flag.NArg() != 1 {
 		flag.Usage()
@@ -34,30 +35,59 @@ func main() {
 		port = strconv.Itoa(gumble.DefaultPort)
 	}
 
-	resp, err := gumble.Ping(net.JoinHostPort(host, port), *interval, *timeout)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
-		os.Exit(1)
-	}
-	major, minor, patch := resp.Version.SemanticVersion()
-
-	if !*jsonOutput {
-		fmt.Printf("Address:         %s\n", resp.Address)
-		fmt.Printf("Ping:            %s\n", resp.Ping)
-		fmt.Printf("Version:         %d.%d.%d\n", major, minor, patch)
-		fmt.Printf("Connected Users: %d\n", resp.ConnectedUsers)
-		fmt.Printf("Maximum Users:   %d\n", resp.MaximumUsers)
-		fmt.Printf("Maximum Bitrate: %d\n", resp.MaximumBitrate)
-	} else {
-		output := map[string]interface{}{
-			"address":         resp.Address.String(),
-			"ping":            float64(resp.Ping) / float64(time.Millisecond),
-			"version":         fmt.Sprintf("%d.%d.%d", major, minor, patch),
-			"connected_users": resp.ConnectedUsers,
-			"maximum_users":   resp.MaximumUsers,
-			"maximum_bitrate": resp.MaximumBitrate,
+	if !*i2pPing {
+		resp, err := gumble.Ping(net.JoinHostPort(host, port), *interval, *timeout)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+			os.Exit(1)
 		}
-		encoder := json.NewEncoder(os.Stdout)
-		encoder.Encode(output)
+		major, minor, patch := resp.Version.SemanticVersion()
+
+		if !*jsonOutput {
+			fmt.Printf("Address:         %s\n", resp.Address)
+			fmt.Printf("Ping:            %s\n", resp.Ping)
+			fmt.Printf("Version:         %d.%d.%d\n", major, minor, patch)
+			fmt.Printf("Connected Users: %d\n", resp.ConnectedUsers)
+			fmt.Printf("Maximum Users:   %d\n", resp.MaximumUsers)
+			fmt.Printf("Maximum Bitrate: %d\n", resp.MaximumBitrate)
+		} else {
+			output := map[string]interface{}{
+				"address":         resp.Address.String(),
+				"ping":            float64(resp.Ping) / float64(time.Millisecond),
+				"version":         fmt.Sprintf("%d.%d.%d", major, minor, patch),
+				"connected_users": resp.ConnectedUsers,
+				"maximum_users":   resp.MaximumUsers,
+				"maximum_bitrate": resp.MaximumBitrate,
+			}
+			encoder := json.NewEncoder(os.Stdout)
+			encoder.Encode(output)
+		}
+	} else {
+		resp, err := gumble.I2PPing(net.JoinHostPort(host, port), *interval, *timeout)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+			os.Exit(1)
+		}
+		major, minor, patch := resp.Version.SemanticVersion()
+
+		if !*jsonOutput {
+			fmt.Printf("Address:         %s\n", resp.Address)
+			fmt.Printf("Ping:            %s\n", resp.Ping)
+			fmt.Printf("Version:         %d.%d.%d\n", major, minor, patch)
+			fmt.Printf("Connected Users: %d\n", resp.ConnectedUsers)
+			fmt.Printf("Maximum Users:   %d\n", resp.MaximumUsers)
+			fmt.Printf("Maximum Bitrate: %d\n", resp.MaximumBitrate)
+		} else {
+			output := map[string]interface{}{
+				"address":         resp.Address.String(),
+				"ping":            float64(resp.Ping) / float64(time.Millisecond),
+				"version":         fmt.Sprintf("%d.%d.%d", major, minor, patch),
+				"connected_users": resp.ConnectedUsers,
+				"maximum_users":   resp.MaximumUsers,
+				"maximum_bitrate": resp.MaximumBitrate,
+			}
+			encoder := json.NewEncoder(os.Stdout)
+			encoder.Encode(output)
+		}
 	}
 }
