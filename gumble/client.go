@@ -239,7 +239,6 @@ func ConnWithConn(iconn net.Conn, addr string, config *Config, tlsConfig *tls.Co
 	}
 }
 
-
 // State returns the current state of the client.
 func (c *Client) State() State {
 	return State(atomic.LoadUint32(&c.state))
