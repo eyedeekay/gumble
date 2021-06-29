@@ -15,9 +15,9 @@ import (
 type BanList []*Ban
 
 // Add creates a new ban list entry with the given parameters.
-func (b *BanList) Add(address net.IP, mask net.IPMask, reason string, duration time.Duration) *Ban {
+func (b *BanList) Add(address net.Addr, mask net.IPMask, reason string, duration time.Duration) *Ban {
 	ban := &Ban{
-		Address:  address,
+		Address:  []byte(address.String()),
 		Mask:     mask,
 		Reason:   reason,
 		Duration: duration,
@@ -32,7 +32,7 @@ func (b *BanList) Add(address net.IP, mask net.IPMask, reason string, duration t
 // entries using BanList.Add().
 type Ban struct {
 	// The banned IP address.
-	Address net.IP
+	Address []byte
 	// The IP mask that the ban applies to.
 	Mask net.IPMask
 	// The name of the banned user.
@@ -50,8 +50,8 @@ type Ban struct {
 }
 
 // SetAddress sets the banned IP address.
-func (b *Ban) SetAddress(address net.IP) {
-	b.Address = address
+func (b *Ban) SetAddress(address net.Addr) {
+	b.Address = []byte(address.String())
 }
 
 // SetMask sets the IP mask that the ban applies to.

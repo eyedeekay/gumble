@@ -649,7 +649,7 @@ func (c *Client) handleBanList(buffer []byte) error {
 
 	for _, banPacket := range packet.Bans {
 		ban := &Ban{
-			Address: net.IP(banPacket.Address),
+			Address: banPacket.Address,
 		}
 		if banPacket.Mask != nil {
 			size := net.IPv4len * 8
