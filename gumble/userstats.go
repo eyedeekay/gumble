@@ -2,7 +2,7 @@ package gumble
 
 import (
 	"crypto/x509"
-	"net"
+//	"net"
 	"time"
 )
 
@@ -49,7 +49,7 @@ type UserStats struct {
 	Opus bool
 
 	// The user's IP address.
-	IP net.IP
+	IP []byte
 }
 
 // UserStatsUDP contains stats about UDP packets that have been sent to or from

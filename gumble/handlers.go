@@ -1168,7 +1168,7 @@ func (c *Client) handleUserStats(buffer []byte) error {
 			stats.Bandwidth = int(*packet.Bandwidth)
 		}
 		if packet.Address != nil {
-			stats.IP = net.IP(packet.Address)
+			stats.IP = packet.Address
 		}
 		if packet.Certificates != nil {
 			stats.Certificates = make([]*x509.Certificate, 0, len(packet.Certificates))
