@@ -166,6 +166,80 @@ func DialWithDialer(dialer *net.Dialer, addr string, config *Config, tlsConfig *
 	}
 }
 
+// DialWithDialer connects to the Mumble server at the given address.
+//
+// The function returns after the connection has been established, the initial
+// server information has been synced, and the OnConnect handlers have been
+// called.
+//
+// nil and an error is returned if server synchronization does not complete by
+// min(time.Now() + dialer.Timeout, dialer.Deadline), or if the server rejects
+// the client.
+func ConnWithConn(iconn net.Conn, addr string, config *Config, tlsConfig *tls.Config) (*Client, error) {
+	start := time.Now()
+
+	conn := tls.Client(iconn, tlsConfig)
+
+	client := &Client{
+		Conn:     NewConn(conn),
+		Config:   config,
+		Users:    make(Users),
+		Channels: make(Channels),
+
+		permissions: make(map[uint32]*Permission),
+
+		state: uint32(StateConnected),
+
+		connect: make(chan *RejectError),
+		end:     make(chan struct{}),
+	}
+
+	go client.readRoutine()
+
+	// Initial packets
+	versionPacket := MumbleProto.Version{
+		Version:   proto.Uint32(ClientVersion),
+		Release:   proto.String("gumble"),
+		Os:        proto.String(runtime.GOOS),
+		OsVersion: proto.String(runtime.GOARCH),
+	}
+	authenticationPacket := MumbleProto.Authenticate{
+		Username: &client.Config.Username,
+		Password: &client.Config.Password,
+		Opus:     proto.Bool(getAudioCodec(audioCodecIDOpus) != nil),
+		Tokens:   client.Config.Tokens,
+	}
+	client.Conn.WriteProto(&versionPacket)
+	client.Conn.WriteProto(&authenticationPacket)
+
+	go client.pingRoutine()
+
+	var timeout <-chan time.Time
+	{
+		var deadline time.Time
+		deadline = time.Now().Add(time.Minute * 2)
+		if !deadline.IsZero() {
+			timer := time.NewTimer(deadline.Sub(start))
+			defer timer.Stop()
+			timeout = timer.C
+		}
+	}
+
+	select {
+	case <-timeout:
+		client.Conn.Close()
+		return nil, errors.New("gumble: synchronization timeout")
+	case err := <-client.connect:
+		if err != nil {
+			client.Conn.Close()
+			return nil, err
+		}
+
+		return client, nil
+	}
+}
+
+
 // State returns the current state of the client.
 func (c *Client) State() State {
 	return State(atomic.LoadUint32(&c.state))

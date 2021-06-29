@@ -8,13 +8,15 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/eyedeekay/sam3/helper"
 )
 
 // PingResponse contains information about a server that responded to a UDP
 // ping packet.
 type PingResponse struct {
 	// The address of the pinged server.
-	Address *net.UDPAddr
+	Address net.Addr
 	// The round-trip time from the client to the server.
 	Ping time.Duration
 	// The server's version. Only the Version field and SemanticVersion method of
@@ -42,9 +44,25 @@ func Ping(address string, interval, timeout time.Duration) (*PingResponse, error
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 	conn.SetReadDeadline(deadline)
+	return PingConn(conn, interval)
+}
 
+func PingI2P(address string, interval, timeout time.Duration) (*PingResponse, error) {
+	if timeout < 0 {
+		return nil, errors.New("gumble: timeout must be positive")
+	}
+	deadline := time.Now().Add(timeout)
+	conn, err := sam.I2PDatagramSession("udp", "127.0.0.1:7656", "mumble")
+	if err != nil {
+		return nil, err
+	}
+	conn.SetReadDeadline(deadline)
+	return PingConn(conn, interval)
+}
+
+func PingConn(conn net.Conn, interval time.Duration) (*PingResponse, error) {
+	defer conn.Close()
 	var (
 		idsLock sync.Mutex
 		ids     = make(map[string]time.Time)
@@ -95,7 +113,7 @@ func Ping(address string, interval, timeout time.Duration) (*PingResponse, error
 		}
 
 		return &PingResponse{
-			Address: conn.RemoteAddr().(*net.UDPAddr),
+			Address: conn.RemoteAddr(), //.(*net.UDPAddr),
 			Ping:    time.Since(sendTime),
 			Version: Version{
 				Version: binary.BigEndian.Uint32(incoming[0:]),
